@@ -1,16 +1,16 @@
 package userInput
 
 import (
-	"log"
 	"fmt"
+	"golang.org/x/crypto/ssh/terminal"
+	"log"
 	"strconv"
 	"strings"
-	"golang.org/x/crypto/ssh/terminal"
 )
 
 var REDIS_VERSIONS = []string{"3.2.10", "4.1"}
 
-const MAX_NODES  = 	500
+const MAX_NODES = 500
 
 func AskForUsername() string {
 	var username string
@@ -55,7 +55,7 @@ func ChooseRedisVersion() string {
 	var redisVersionId int
 	fmt.Println("Supported Redis Versions:")
 	for i, version := range REDIS_VERSIONS {
-		fmt.Println(strconv.Itoa(i + 1) + ". " + version)
+		fmt.Println(strconv.Itoa(i+1) + ". " + version)
 	}
 	fmt.Println("Please choose redis version(1/2/3..):")
 	_, err := fmt.Scanln(&redisVersionId)
@@ -69,7 +69,7 @@ func ChooseRedisVersion() string {
 	if redisVersionId < 1 || redisVersionId > len(REDIS_VERSIONS) {
 		return ChooseRedisVersion()
 	} else {
-		return REDIS_VERSIONS[redisVersionId - 1]
+		return REDIS_VERSIONS[redisVersionId-1]
 	}
 }
 
@@ -86,11 +86,10 @@ func AskForHostPort() (string, string) {
 	}
 	redisNodeInfo = strings.TrimSpace(redisNodeInfo)
 	parts := strings.Split(redisNodeInfo, ":")
-	if len(parts) != 2  {
+	if len(parts) != 2 {
 		fmt.Println("Error: Pass host:port to fetch status")
 		return AskForHostPort()
 	} else {
 		return parts[0], parts[1]
 	}
 }
-

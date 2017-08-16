@@ -1,21 +1,21 @@
 package cluster
 
 import (
-	"log"
-	"io"
-	"golang.org/x/crypto/ssh"
-	"github.com/pkg/sftp"
-	"os"
-	"strings"
-	"redisUtility/userInput"
-	"time"
-	"fmt"
-	"net/http"
 	"bytes"
 	"errors"
+	"fmt"
+	"github.com/pkg/sftp"
+	"golang.org/x/crypto/ssh"
+	"io"
+	"log"
+	"net/http"
+	"os"
+	"smartRedis/userInput"
+	"strings"
+	"time"
 )
 
-func copyRedisTar(client *ssh.Client, redisVersion string)  {
+func copyRedisTar(client *ssh.Client, redisVersion string) {
 	sftp, err := sftp.NewClient(client)
 	if err != nil {
 		log.Fatal(err)
@@ -62,7 +62,7 @@ func getHost(hostPort []string) (hosts map[string]bool, err error) {
 	return
 }
 
-func ClusterCreate()  {
+func ClusterCreate() {
 	username := userInput.AskForUsername()
 	pass := userInput.AskForPassword()
 	redisVersion := userInput.ChooseRedisVersion()
@@ -79,13 +79,13 @@ func ClusterCreate()  {
 		Auth: []ssh.AuthMethod{
 			ssh.Password(pass),
 		},
-		Timeout: 5*time.Second,
-		HostKeyCallback:ssh.InsecureIgnoreHostKey(), // TODO fix me, should not be used in prod
+		Timeout:         5 * time.Second,
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // TODO fix me, should not be used in prod
 	}
 	fmt.Println("Dialing......")
 	client, err := ssh.Dial("tcp", "nmc-idp4:22", config)
 	if err != nil {
-		panic("Failed to dial: "+ err.Error())
+		panic("Failed to dial: " + err.Error())
 	}
 	fmt.Println("Dialed success")
 	//session, err := client.NewSession()
@@ -103,7 +103,7 @@ func ClusterCreate()  {
 	log.Println(executeCmd(client, "/usr/bin/whoami"))
 	redisTar := "redis-" + redisVersion + ".tar.gz"
 	out, err := os.Create("/home/akhilesh.singh/" + redisTar)
-	if err != nil  {
+	if err != nil {
 		panic("Failed to create file: " + err.Error())
 	} else {
 		log.Println("File created: " + "/home/akhilesh.singh/" + redisTar)
@@ -121,7 +121,7 @@ func ClusterCreate()  {
 
 	// Writer the body to file
 	_, err = io.Copy(out, resp.Body)
-	if err != nil  {
+	if err != nil {
 		panic("Failed to copy file: " + err.Error())
 	} else {
 		log.Println("File copied")
@@ -156,4 +156,3 @@ func executeCmd(conn *ssh.Client, cmd string) string {
 
 	return conn.User() + ": " + stdoutBuf.String()
 }
-

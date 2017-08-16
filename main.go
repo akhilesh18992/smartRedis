@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
-	"redisUtility/status"
-	"redisUtility/cluster"
+	"smartRedis/cluster"
+	"smartRedis/status"
 )
 
 func main() {

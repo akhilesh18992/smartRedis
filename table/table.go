@@ -2,37 +2,37 @@ package table
 
 import (
 	"fmt"
-	"redisUtility/color"
+	"smartRedis/color"
 )
 
-const ALIGN_RIGHT  =  1
+const ALIGN_RIGHT = 1
 
 type table struct {
-	data []tableRow
-	header []string
-	cols int
+	data     []tableRow
+	header   []string
+	cols     int
 	colWidth map[int]int
-	padding int
-	border string
+	padding  int
+	border   string
 }
 
 type tableRow struct {
-	row []string
+	row       []string
 	colorCode int
 }
 
 func Init() *table {
 	return &table{
-		data: []tableRow{},
-		header: []string{},
-		cols: 0,
+		data:     []tableRow{},
+		header:   []string{},
+		cols:     0,
 		colWidth: map[int]int{},
-		padding:1,
-		border:"|",
+		padding:  1,
+		border:   "|",
 	}
 }
 
-func (t *table) SetHeader(headers []string)  {
+func (t *table) SetHeader(headers []string) {
 	for i, header := range headers {
 		if len(header) > t.colWidth[i] {
 			t.colWidth[i] = len(header)
@@ -44,7 +44,7 @@ func (t *table) SetHeader(headers []string)  {
 	t.header = headers
 }
 
-func (t *table) Append(row []string, colorCode int)  {
+func (t *table) Append(row []string, colorCode int) {
 	var tableRow tableRow
 	for i, field := range row {
 		if len(field) > t.colWidth[i] {
@@ -59,7 +59,7 @@ func (t *table) Append(row []string, colorCode int)  {
 	t.data = append(t.data, tableRow)
 }
 
-func (t *table) Render()  {
+func (t *table) Render() {
 	headerOut := "| "
 	divider := "+-"
 	for i, header := range t.header {
@@ -67,7 +67,7 @@ func (t *table) Render()  {
 		for count := 0; count < t.colWidth[i]; count++ {
 			divider += "-"
 		}
-		if i != len(t.header) - 1 {
+		if i != len(t.header)-1 {
 			headerOut += " | "
 			divider += "-+-"
 		}
@@ -99,7 +99,7 @@ func tabbedOutput(data string, width int, align int) string {
 	for i := 1; i <= width-l; i++ {
 		out += " "
 	}
-	if (align == ALIGN_RIGHT) {
+	if align == ALIGN_RIGHT {
 		out += data
 	} else {
 		out = data + out

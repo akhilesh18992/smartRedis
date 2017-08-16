@@ -1,25 +1,36 @@
 package model
 
+const SLAVE = "SLAVE"
+const MASTER = "MASTER"
+
 type NodeInfo struct {
-	NodeId			string
-	Ip				string
-	Port			string
-	MasterId		string
-	HashSlot		string
-	HashSlotStart	int
-	HashSlotEnd		int
-	Type			string
+	NodeId        string
+	Ip            string
+	Port          string
+	MasterId      string
+	HashSlot      string
+	HashSlotStart int
+	HashSlotEnd   int
+	Type          string
 	RedisInfo
 }
 
 type RedisInfo struct {
-	Hits          int
-	Miss          		int
-	UsedMemory    		int
-	UsedMemoryPeak    	int
-	RedisVersion  string
-	NonExpiryKeys int
-	SystemMemory  int
+	Version                 string
+	Mode                    string
+	Pid                     int
+	Uptime                  int // secs
+	MaxMemory               int
+	EvictionPolicy          string
+	InstantaneousOpsPerSec  int
+	InstantaneousInputKbps  float64
+	InstantaneousOutputKbps float64
+	Hits                    int
+	Miss                    int
+	UsedMemory              int
+	UsedMemoryPeak          int
+	NonExpiryKeys           int
+	SystemMemory            int
 }
 
 type NodesInfo []NodeInfo
