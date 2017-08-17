@@ -28,16 +28,85 @@ func Status() {
 	for _, node := range nodesTableInfo {
 		updateMachineStats(machineStats, node)
 	}
+	diagnosis := color.BBlue("\nSmartRedis Diagnosis") + "\n"
 	nodeStatsError := display.DisplayNodeStats(nodesTableInfo, masterSlaveIpMap)
 	if nodeStatsError != nil {
-		fmt.Println(color.BRed(nodeStatsError.Error()))
+		diagnosis += color.BRed(nodeStatsError.Error()) + "\n"
 	}
 	machineStatsError := display.DisplayMachineStats(machineStats, totalMasters)
 	if machineStatsError != nil {
-		fmt.Println(color.BRed(machineStatsError.Error()))
+		diagnosis += color.BRed(machineStatsError.Error()) + "\n"
 	}
+
+	fmt.Println(diagnosis)
 }
 
+// returns model.NodesInfo by getting data from redis cluster nodes command and redis info command
+func getNodesInfo(host, port string) (model.NodesInfo, map[string][]string, int) {
+	var nodes []model.NodeInfo
+	// TODO handle when redis-cli is not there
+	cmd := "redis-cli -h " + host + " -p " + port + " cluster nodes"
+	out, _ := exec.Command("sh", "-c", cmd).Output()
+	clusterStatus := string(out)
+	nodeDetail := strings.Split(clusterStatus, "\n")
+	masterSlaveIpMap := make(map[string][]string)
+	//machineMasterCountMap := make(map[string]int)
+	totalMasters := 0
+	IpHostMap := make(map[string]string)
+	for _, nd := range nodeDetail {
+		nodeDetailList := strings.Split(nd, " ")
+		if len(nodeDetailList) <= 1 {
+			continue
+		}
+		var nodeInfo model.NodeInfo
+		nodeInfo.NodeId = nodeDetailList[0]
+		hostPort := strings.Split(nodeDetailList[1], ":")
+		nodeInfo.Ip, nodeInfo.Port = hostPort[0], hostPort[1]
+		if IpHostMap[nodeInfo.Ip] == "" {
+			IpHostMap[nodeInfo.Ip] = ssh.GetHostname(nodeInfo.Ip)
+		}
+		if strings.Contains(nodeDetailList[2], "slave") {
+			masterSlaveIpMap[nodeDetailList[3]] = append(masterSlaveIpMap[nodeInfo.MasterId], nodeDetailList[1])
+			nodeInfo.Type = model.SLAVE
+		} else {
+			nodeInfo.Type = model.MASTER
+			nodeInfo.HashSlot = nodeDetailList[8]
+			slotRange := strings.Split(nodeInfo.HashSlot, "-")
+			nodeInfo.HashSlotStart, _ = strconv.Atoi(slotRange[0])
+			nodeInfo.HashSlotEnd, _ = strconv.Atoi(slotRange[1])
+			//machineMasterCountMap[nodeInfo.Ip] += 1
+			totalMasters += 1
+
+		}
+		nodeInfo.Host = IpHostMap[nodeInfo.Ip]
+		nodes = append(nodes, nodeInfo)
+	}
+	nodesTableInfo := getRedisInfo(nodes)
+	sort.Sort(nodesTableInfo)
+	return nodesTableInfo, masterSlaveIpMap, totalMasters
+}
+
+// spawns workers to fetch the redis info concurrently
+func getRedisInfo(nodes []model.NodeInfo) model.NodesInfo {
+	redisInfo := make(chan model.NodeInfo, len(nodes))
+	nodeList := make(chan model.NodeInfo, len(nodes))
+
+	for w := 1; w <= 20; w++ {
+		go redisInfoWorker(nodeList, redisInfo)
+	}
+
+	for _, node := range nodes {
+		nodeList <- node
+	}
+	close(nodeList)
+	var nodeDetail []model.NodeInfo
+	for i := 1; i <= len(nodes); i++ {
+		nodeDetail = append(nodeDetail, <-redisInfo)
+	}
+	return nodeDetail
+}
+
+// redis worker to extract data from redis info and map it to model.NodeInfo structure
 func redisInfoWorker(nodeList chan model.NodeInfo, redisInfo chan model.NodeInfo) {
 	for node := range nodeList {
 		// TODO handle if node down
@@ -91,69 +160,7 @@ func redisInfoWorker(nodeList chan model.NodeInfo, redisInfo chan model.NodeInfo
 	}
 }
 
-func getRedisInfo(nodes []model.NodeInfo) model.NodesInfo {
-	redisInfo := make(chan model.NodeInfo, len(nodes))
-	nodeList := make(chan model.NodeInfo, len(nodes))
-
-	for w := 1; w <= 3; w++ {
-		go redisInfoWorker(nodeList, redisInfo)
-	}
-
-	for _, node := range nodes {
-		nodeList <- node
-	}
-	close(nodeList)
-	var nodeDetail []model.NodeInfo
-	for i := 1; i <= len(nodes); i++ {
-		nodeDetail = append(nodeDetail, <-redisInfo)
-	}
-	return nodeDetail
-}
-
-func getNodesInfo(host, port string) (model.NodesInfo, map[string][]string, int) {
-	var nodes []model.NodeInfo
-	// TODO handle when redis-cli is not there
-	cmd := "redis-cli -h " + host + " -p " + port + " cluster nodes"
-	out, _ := exec.Command("sh", "-c", cmd).Output()
-	clusterStatus := string(out)
-	nodeDetail := strings.Split(clusterStatus, "\n")
-	masterSlaveIpMap := make(map[string][]string)
-	//machineMasterCountMap := make(map[string]int)
-	totalMasters := 0
-	IpHostMap := make(map[string]string)
-	for _, nd := range nodeDetail {
-		nodeDetailList := strings.Split(nd, " ")
-		if len(nodeDetailList) <= 1 {
-			continue
-		}
-		var nodeInfo model.NodeInfo
-		nodeInfo.NodeId = nodeDetailList[0]
-		hostPort := strings.Split(nodeDetailList[1], ":")
-		nodeInfo.Ip, nodeInfo.Port = hostPort[0], hostPort[1]
-		if IpHostMap[nodeInfo.Ip] == "" {
-			IpHostMap[nodeInfo.Ip] = ssh.GetHostname(nodeInfo.Ip)
-		}
-		if strings.Contains(nodeDetailList[2], "slave") {
-			masterSlaveIpMap[nodeDetailList[3]] = append(masterSlaveIpMap[nodeInfo.MasterId], nodeDetailList[1])
-			nodeInfo.Type = model.SLAVE
-		} else {
-			nodeInfo.Type = model.MASTER
-			nodeInfo.HashSlot = nodeDetailList[8]
-			slotRange := strings.Split(nodeInfo.HashSlot, "-")
-			nodeInfo.HashSlotStart, _ = strconv.Atoi(slotRange[0])
-			nodeInfo.HashSlotEnd, _ = strconv.Atoi(slotRange[1])
-			//machineMasterCountMap[nodeInfo.Ip] += 1
-			totalMasters += 1
-
-		}
-		nodeInfo.Host = IpHostMap[nodeInfo.Ip]
-		nodes = append(nodes, nodeInfo)
-	}
-	nodesTableInfo := getRedisInfo(nodes)
-	sort.Sort(nodesTableInfo)
-	return nodesTableInfo, masterSlaveIpMap, totalMasters
-}
-
+// updates machineStats using nodeInfo
 func updateMachineStats(machineStats map[string]model.MachineStats, node model.NodeInfo) {
 	stats := machineStats[node.Ip]
 	stats.RedisMemory += node.UsedMemory

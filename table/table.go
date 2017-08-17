@@ -17,8 +17,12 @@ type table struct {
 }
 
 type tableRow struct {
-	row       []string
-	colorCode int
+	row       []Record
+}
+
+type Record struct {
+	Value	string
+	ColorCode int
 }
 
 func Init() *table {
@@ -44,18 +48,31 @@ func (t *table) SetHeader(headers []string) {
 	t.header = headers
 }
 
-func (t *table) Append(row []string, colorCode int) {
+func (t *table) AppendRecord(row []Record) {
+	var tableRow tableRow
+	for i, record := range row {
+		if len(record.Value) > t.colWidth[i] {
+			t.colWidth[i] = len(record.Value)
+		}
+		tableRow.row = append(tableRow.row, record)
+	}
+	if len(row) > t.cols {
+		t.cols = len(row)
+	}
+	t.data = append(t.data, tableRow)
+}
+
+func (t *table) AppendString(row []string, colorCode int) {
 	var tableRow tableRow
 	for i, field := range row {
 		if len(field) > t.colWidth[i] {
 			t.colWidth[i] = len(field)
 		}
-		tableRow.row = append(tableRow.row, field)
+		tableRow.row = append(tableRow.row, Record{field, colorCode})
 	}
 	if len(row) > t.cols {
 		t.cols = len(row)
 	}
-	tableRow.colorCode = colorCode
 	t.data = append(t.data, tableRow)
 }
 
@@ -77,8 +94,8 @@ func (t *table) Render() {
 	fmt.Println(divider + " +")
 	for _, data := range t.data {
 		out := ""
-		for i, field := range data.row {
-			out += t.border + t.fieldPadding() + color.Render(data.colorCode, 0, tabbedOutput(field, t.colWidth[i], ALIGN_RIGHT)) + t.fieldPadding()
+		for i, record := range data.row {
+			out += t.border + t.fieldPadding() + color.Render(record.ColorCode, 0, tabbedOutput(record.Value, t.colWidth[i], ALIGN_RIGHT)) + t.fieldPadding()
 		}
 		out += t.border
 		fmt.Println(out)

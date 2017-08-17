@@ -7,6 +7,7 @@ import (
 	"strings"
 )
 
+// convert memory in Byte to human readable
 func ReadableMemory(mem int) string {
 	sizeSuffix := "B"
 	size := mem
@@ -25,8 +26,9 @@ func ReadableMemory(mem int) string {
 	return strconv.Itoa(size) + sizeSuffix
 }
 
-func ExecCmd() string {
-	out, err := exec.Command("/usr/bin/whoami").Output()
+// execute shell command
+func ExecCmd(cmd string) string {
+	out, err := exec.Command(cmd).Output()
 	if err != nil {
 		log.Fatal(err)
 	}

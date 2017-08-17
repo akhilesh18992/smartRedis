@@ -15,7 +15,7 @@ const MAX_NODES = 500
 
 func AskForUsername() string {
 	var username string
-	defaultUsername := utils.ExecCmd()
+	defaultUsername := utils.ExecCmd("/usr/bin/whoami")
 	fmt.Print("username(default " + defaultUsername + "):")
 	_, err := fmt.Scanln(&username)
 	if err != nil {

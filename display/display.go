@@ -15,6 +15,7 @@ func DisplayNodeStats(nodesTableInfo model.NodesInfo, masterSlaveIpMap map[strin
 	tw := table.Init()
 	var masterSlaveOnSameMachine bool
 	var host string
+	defaultColor := color.GREEN
 	for _, node := range nodesTableInfo {
 		if node.Type == model.SLAVE {
 			continue
@@ -30,8 +31,14 @@ func DisplayNodeStats(nodesTableInfo model.NodesInfo, masterSlaveIpMap map[strin
 		} else {
 			host = node.Ip
 		}
-		tw.Append([]string{host, node.Port, utils.ReadableMemory(node.UsedMemory), utils.ReadableMemory(node.UsedMemoryPeak), cacheMiss,
-			strings.Join(masterSlaveIpMap[node.NodeId], ","), node.HashSlot}, colorCode)
+		tw.AppendRecord([]table.Record{
+			{host, defaultColor},
+			{node.Port, defaultColor},
+			{utils.ReadableMemory(node.UsedMemory), defaultColor},
+			{utils.ReadableMemory(node.UsedMemoryPeak), defaultColor},
+			{cacheMiss, defaultColor},
+			{strings.Join(masterSlaveIpMap[node.NodeId], ","), colorCode},
+			{node.HashSlot, defaultColor}})
 	}
 	tw.SetHeader([]string{"Host", "Port", "Data Size", "Peak Mem Used", "Cache Miss", "Slave Node", "Slot"})
 	tw.Render()
@@ -44,6 +51,7 @@ func DisplayNodeStats(nodesTableInfo model.NodesInfo, masterSlaveIpMap map[strin
 func DisplayMachineStats(machineStats map[string]model.MachineStats, totalMaster int) (err error) {
 	unbalancedCluster := false
 	avgMaster := totalMaster / len(machineStats)
+	defaultColor := color.GREEN
 	t := table.Init()
 	t.SetHeader([]string{"Machine", "Space Used", "Ops Per second", "Network(kbps)", "Master", "Slave"})
 	fmt.Println("\n\nTotal masters: " + strconv.Itoa(totalMaster))
@@ -66,8 +74,13 @@ func DisplayMachineStats(machineStats map[string]model.MachineStats, totalMaster
 			host = ip
 		}
 
-		t.Append([]string{host, spaceUsed, strconv.Itoa(stats.OpsPerSec), strconv.FormatFloat(stats.NetworkBandwidth, 'f', 2, 64),
-			strconv.Itoa(stats.Master), strconv.Itoa(stats.Slave)}, colorCode)
+		t.AppendRecord([]table.Record{
+			{host, defaultColor},
+			{spaceUsed, defaultColor},
+			{strconv.Itoa(stats.OpsPerSec), defaultColor},
+			{strconv.FormatFloat(stats.NetworkBandwidth, 'f', 2, 64), defaultColor},
+			{strconv.Itoa(stats.Master), colorCode},
+			{strconv.Itoa(stats.Slave), defaultColor}})
 	}
 	t.Render()
 	if unbalancedCluster {

@@ -10,10 +10,12 @@ import (
 
 var config *ssh.ClientConfig
 
+// returns hostname from ip through ssh, if fails then returns ip
 func GetHostname(ip string) string {
 	if config == nil {
 		return ""
 	}
+	fmt.Println("Resolving host for " + ip)
 	client, err := ssh.Dial("tcp", ip + ":22", config)
 	if err != nil {
 		fmt.Println("error resolving hostname. Unable to ssh to " + ip)
@@ -22,6 +24,7 @@ func GetHostname(ip string) string {
 	return strings.Trim(executeCmd(client, "/bin/hostname"), "\t\n\r")
 }
 
+// initializing ssh config
 func Config(username, password string)  {
 	config = &ssh.ClientConfig{
 		User: username,
@@ -33,6 +36,7 @@ func Config(username, password string)  {
 	}
 }
 
+// returns output of shell command running over ssh
 func executeCmd(conn *ssh.Client, cmd string) string {
 	session, _ := conn.NewSession()
 	defer session.Close()
