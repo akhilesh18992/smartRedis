@@ -14,7 +14,7 @@ import (
 func DisplayNodeStats(nodesTableInfo model.NodesInfo, masterSlaveIpMap map[string][]string) (err error) {
 	tw := table.Init()
 	var masterSlaveOnSameMachine bool
-
+	var host string
 	for _, node := range nodesTableInfo {
 		if node.Type == model.SLAVE {
 			continue
@@ -25,7 +25,12 @@ func DisplayNodeStats(nodesTableInfo model.NodesInfo, masterSlaveIpMap map[strin
 			colorCode = color.RED
 			masterSlaveOnSameMachine = true
 		}
-		tw.Append([]string{node.Ip, node.Port, utils.ReadableMemory(node.UsedMemory), utils.ReadableMemory(node.UsedMemoryPeak), cacheMiss,
+		if node.Host != "" {
+			host = node.Host
+		} else {
+			host = node.Ip
+		}
+		tw.Append([]string{host, node.Port, utils.ReadableMemory(node.UsedMemory), utils.ReadableMemory(node.UsedMemoryPeak), cacheMiss,
 			strings.Join(masterSlaveIpMap[node.NodeId], ","), node.HashSlot}, colorCode)
 	}
 	tw.SetHeader([]string{"Host", "Port", "Data Size", "Peak Mem Used", "Cache Miss", "Slave Node", "Slot"})
@@ -42,6 +47,7 @@ func DisplayMachineStats(machineStats map[string]model.MachineStats, totalMaster
 	t := table.Init()
 	t.SetHeader([]string{"Machine", "Space Used", "Ops Per second", "Network(kbps)", "Master", "Slave"})
 	fmt.Println("\n\nTotal masters: " + strconv.Itoa(totalMaster))
+	var host string
 	for ip, stats := range machineStats {
 		colorCode := color.GREEN
 		if stats.Master > avgMaster {
@@ -54,8 +60,13 @@ func DisplayMachineStats(machineStats map[string]model.MachineStats, totalMaster
 		} else {
 			spaceUsed = strconv.FormatFloat((float64(stats.RedisMemory)/float64(stats.Memory))*100, 'f', 2, 64) + "%"
 		}
+		if stats.Hostname != "" {
+			host = stats.Hostname
+		} else {
+			host = ip
+		}
 
-		t.Append([]string{ip, spaceUsed, strconv.Itoa(stats.OpsPerSec), strconv.FormatFloat(stats.NetworkBandwidth, 'f', 2, 64),
+		t.Append([]string{host, spaceUsed, strconv.Itoa(stats.OpsPerSec), strconv.FormatFloat(stats.NetworkBandwidth, 'f', 2, 64),
 			strconv.Itoa(stats.Master), strconv.Itoa(stats.Slave)}, colorCode)
 	}
 	t.Render()

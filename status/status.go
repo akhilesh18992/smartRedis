@@ -10,17 +10,21 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"smartRedis/ssh"
 )
 
 func Status() {
 	host, port := userInput.AskForHostPort()
+	username, password, consent := userInput.AskForUsernamePassword()
+	if consent == "y" || consent == "Y" {
+		ssh.Config(username, password)
+	}
 	nodesTableInfo, masterSlaveIpMap, totalMasters := getNodesInfo(host, port)
 	if len(masterSlaveIpMap) == 0 {
 		fmt.Println("Wrong Host Port")
 		return
 	}
 	machineStats := make(map[string]model.MachineStats)
-
 	for _, node := range nodesTableInfo {
 		updateMachineStats(machineStats, node)
 	}
@@ -116,6 +120,7 @@ func getNodesInfo(host, port string) (model.NodesInfo, map[string][]string, int)
 	masterSlaveIpMap := make(map[string][]string)
 	//machineMasterCountMap := make(map[string]int)
 	totalMasters := 0
+	IpHostMap := make(map[string]string)
 	for _, nd := range nodeDetail {
 		nodeDetailList := strings.Split(nd, " ")
 		if len(nodeDetailList) <= 1 {
@@ -125,7 +130,9 @@ func getNodesInfo(host, port string) (model.NodesInfo, map[string][]string, int)
 		nodeInfo.NodeId = nodeDetailList[0]
 		hostPort := strings.Split(nodeDetailList[1], ":")
 		nodeInfo.Ip, nodeInfo.Port = hostPort[0], hostPort[1]
-
+		if IpHostMap[nodeInfo.Ip] == "" {
+			IpHostMap[nodeInfo.Ip] = ssh.GetHostname(nodeInfo.Ip)
+		}
 		if strings.Contains(nodeDetailList[2], "slave") {
 			masterSlaveIpMap[nodeDetailList[3]] = append(masterSlaveIpMap[nodeInfo.MasterId], nodeDetailList[1])
 			nodeInfo.Type = model.SLAVE
@@ -139,6 +146,7 @@ func getNodesInfo(host, port string) (model.NodesInfo, map[string][]string, int)
 			totalMasters += 1
 
 		}
+		nodeInfo.Host = IpHostMap[nodeInfo.Ip]
 		nodes = append(nodes, nodeInfo)
 	}
 	nodesTableInfo := getRedisInfo(nodes)
@@ -149,6 +157,9 @@ func getNodesInfo(host, port string) (model.NodesInfo, map[string][]string, int)
 func updateMachineStats(machineStats map[string]model.MachineStats, node model.NodeInfo) {
 	stats := machineStats[node.Ip]
 	stats.RedisMemory += node.UsedMemory
+	if node.Host != "" {
+		stats.Hostname = node.Host
+	}
 	if node.Type == model.MASTER {
 		stats.Master += 1
 	} else {

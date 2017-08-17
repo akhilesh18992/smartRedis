@@ -1,6 +1,11 @@
 package utils
 
-import "strconv"
+import (
+	"strconv"
+	"log"
+	"os/exec"
+	"strings"
+)
 
 func ReadableMemory(mem int) string {
 	sizeSuffix := "B"
@@ -18,4 +23,12 @@ func ReadableMemory(mem int) string {
 		size /= 1024
 	}
 	return strconv.Itoa(size) + sizeSuffix
+}
+
+func ExecCmd() string {
+	out, err := exec.Command("/usr/bin/whoami").Output()
+	if err != nil {
+		log.Fatal(err)
+	}
+	return strings.Trim(string(out), "\n\t\r")
 }

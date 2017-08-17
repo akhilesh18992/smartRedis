@@ -6,6 +6,7 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"smartRedis/utils"
 )
 
 var REDIS_VERSIONS = []string{"3.2.10", "4.1"}
@@ -14,7 +15,8 @@ const MAX_NODES = 500
 
 func AskForUsername() string {
 	var username string
-	fmt.Print("username:")
+	defaultUsername := utils.ExecCmd()
+	fmt.Print("username(default " + defaultUsername + "):")
 	_, err := fmt.Scanln(&username)
 	if err != nil {
 		if err.Error() == "unexpected newline" {
@@ -23,14 +25,12 @@ func AskForUsername() string {
 			log.Fatal(err)
 		}
 	}
-	username = strings.TrimSpace(username)
-	if username != "" {
-		return username
-	} else {
-		fmt.Println("Error: Empty username")
-		return AskForUsername()
+	if username == "" {
+		username = defaultUsername
 	}
+	return strings.TrimSpace(username)
 }
+
 func AskForPassword() string {
 	var pass []byte
 	fmt.Print("password:")
@@ -73,10 +73,10 @@ func ChooseRedisVersion() string {
 	}
 }
 
-func AskForHostPort() (string, string) {
-	var redisNodeInfo string
-	fmt.Print("enter redis node to monitor(host:port):")
-	_, err := fmt.Scanln(&redisNodeInfo)
+func AskForHostPort() (host, port string) {
+	// ask for host
+	fmt.Print("Enter host(default localhost):")
+	_, err := fmt.Scanln(&host)
 	if err != nil {
 		if err.Error() == "unexpected newline" {
 
@@ -84,12 +84,43 @@ func AskForHostPort() (string, string) {
 			log.Fatal(err)
 		}
 	}
-	redisNodeInfo = strings.TrimSpace(redisNodeInfo)
-	parts := strings.Split(redisNodeInfo, ":")
-	if len(parts) != 2 {
-		fmt.Println("Error: Pass host:port to fetch status")
-		return AskForHostPort()
-	} else {
-		return parts[0], parts[1]
+	host = strings.TrimSpace(host)
+
+	// ask for host
+	fmt.Print("Enter port(default 6379):")
+	_, err = fmt.Scanln(&port)
+	if err != nil {
+		if err.Error() == "unexpected newline" {
+
+		} else {
+			log.Fatal(err)
+		}
 	}
+	port = strings.TrimSpace(port)
+	if host == "" {
+		host = "localhost"
+	}
+	if port == "" {
+		port = "6379"
+	}
+	return
+}
+
+func AskForUsernamePassword() (username, password, consent string)  {
+	// ask for username password
+	fmt.Print("Resolve IP to Hostname(y/n):")
+	_, err := fmt.Scanln(&consent)
+	if err != nil {
+		if err.Error() == "unexpected newline" {
+
+		} else {
+			log.Fatal(err)
+		}
+	}
+	consent = strings.TrimSpace(consent)
+	if consent == "y" || consent == "Y" {
+		username = AskForUsername()
+		password = AskForPassword()
+	}
+	return
 }

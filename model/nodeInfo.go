@@ -6,6 +6,7 @@ const MASTER = "MASTER"
 type NodeInfo struct {
 	NodeId        string
 	Ip            string
+	Host		string
 	Port          string
 	MasterId      string
 	HashSlot      string
@@ -53,6 +54,7 @@ func (slice NodesInfo) Swap(i, j int) {
 
 func (node *NodeInfo) CopyFrom(nodeInfo NodeInfo) {
 	node.Ip = nodeInfo.Ip
+	node.Host = nodeInfo.Host
 	node.Port = nodeInfo.Port
 	node.NodeId = nodeInfo.NodeId
 	node.Type = nodeInfo.Type
