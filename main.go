@@ -10,8 +10,9 @@ import (
 
 func main() {
 	flags.Init()
+	fmt.Println(flags.Action)
 	if flags.Action == "status" {
-		go status.Status()
+		status.Status()
 	} else if flags.Action == "statsd" {
 		statsd.Statsd()
 	} else if flags.Action == "create-cluster" {
