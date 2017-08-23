@@ -11,7 +11,11 @@ import (
 	"strconv"
 	"strings"
 	"smartRedis/ssh"
+	"smartRedis/diagnostics"
+	"smartRedis/utils"
 )
+
+var IpHostMap = make(map[string]string)
 
 func Status() {
 	host, port := userInput.AskForHostPort()
@@ -19,30 +23,33 @@ func Status() {
 	if consent == "y" || consent == "Y" {
 		ssh.Config(username, password)
 	}
-	nodesTableInfo, masterSlaveIpMap, totalMasters := getNodesInfo(host, port)
+	nodesTableInfo, masterSlaveIpMap, totalMasters := GetNodesInfo(host, port)
 	if len(masterSlaveIpMap) == 0 {
 		fmt.Println("Wrong Host Port")
 		return
 	}
 	machineStats := make(map[string]model.MachineStats)
+	//var diagnose diagnostics
+	diagnose := diagnostics.Init()
+	diagnose.RunDiagnostics(nodesTableInfo, masterSlaveIpMap)
 	for _, node := range nodesTableInfo {
 		updateMachineStats(machineStats, node)
 	}
-	diagnosis := color.BBlue("\nSmartRedis Diagnosis") + "\n"
 	nodeStatsError := display.DisplayNodeStats(nodesTableInfo, masterSlaveIpMap)
 	if nodeStatsError != nil {
-		diagnosis += color.BRed(nodeStatsError.Error()) + "\n"
+		diagnose.Error(color.BRed(nodeStatsError.Error()) + "\n")
 	}
 	machineStatsError := display.DisplayMachineStats(machineStats, totalMasters)
 	if machineStatsError != nil {
-		diagnosis += color.BRed(machineStatsError.Error()) + "\n"
+		diagnose.Error(color.BRed(machineStatsError.Error()) + "\n")
 	}
 
-	fmt.Println(diagnosis)
+	diagnose.Print()
+	// error on no maxmemory, eviction policy, no slave, linux overcommit etc.
 }
 
 // returns model.NodesInfo by getting data from redis cluster nodes command and redis info command
-func getNodesInfo(host, port string) (model.NodesInfo, map[string][]string, int) {
+func GetNodesInfo(host, port string) (model.NodesInfo, map[string][]string, int) {
 	var nodes []model.NodeInfo
 	// TODO handle when redis-cli is not there
 	cmd := "redis-cli -h " + host + " -p " + port + " cluster nodes"
@@ -52,7 +59,7 @@ func getNodesInfo(host, port string) (model.NodesInfo, map[string][]string, int)
 	masterSlaveIpMap := make(map[string][]string)
 	//machineMasterCountMap := make(map[string]int)
 	totalMasters := 0
-	IpHostMap := make(map[string]string)
+	//IpHostMap = make(map[string]string)
 	for _, nd := range nodeDetail {
 		nodeDetailList := strings.Split(nd, " ")
 		if len(nodeDetailList) <= 1 {
@@ -66,7 +73,7 @@ func getNodesInfo(host, port string) (model.NodesInfo, map[string][]string, int)
 			IpHostMap[nodeInfo.Ip] = ssh.GetHostname(nodeInfo.Ip)
 		}
 		if strings.Contains(nodeDetailList[2], "slave") {
-			masterSlaveIpMap[nodeDetailList[3]] = append(masterSlaveIpMap[nodeInfo.MasterId], nodeDetailList[1])
+			masterSlaveIpMap[nodeDetailList[3]] = append(masterSlaveIpMap[nodeInfo.MasterId], IpHostMap[nodeInfo.Ip]+":" + nodeInfo.Port)
 			nodeInfo.Type = model.SLAVE
 		} else {
 			nodeInfo.Type = model.MASTER
@@ -84,6 +91,21 @@ func getNodesInfo(host, port string) (model.NodesInfo, map[string][]string, int)
 	nodesTableInfo := getRedisInfo(nodes)
 	sort.Sort(nodesTableInfo)
 	return nodesTableInfo, masterSlaveIpMap, totalMasters
+}
+
+// returns model.NodesInfo by getting data from redis cluster nodes command and redis info command
+func GetNodeInfo(hostInput, portInput string) (model.NodesInfo) {
+	var nodes []model.NodeInfo
+	var nodeInfo model.NodeInfo
+	ports := strings.Split(portInput, ",")
+	host := strings.Trim(utils.ExecCmd("/bin/hostname"), "\t\n\r")
+	for _, port := range ports {
+		nodeInfo.Ip, nodeInfo.Port = hostInput, port
+		nodeInfo.Host = host
+		nodes = append(nodes, nodeInfo)
+	}
+	nodesTableInfo := getRedisInfo(nodes)
+	return nodesTableInfo
 }
 
 // spawns workers to fetch the redis info concurrently
@@ -120,6 +142,8 @@ func redisInfoWorker(nodeList chan model.NodeInfo, redisInfo chan model.NodeInfo
 				info.Version = strings.Split(line, ":")[1]
 			} else if strings.HasPrefix(line, "redis_mode:") {
 				info.Mode = strings.Split(line, ":")[1]
+			} else if strings.HasPrefix(line, "role:") {
+				info.Role = strings.Split(line, ":")[1]
 			} else if strings.HasPrefix(line, "process_id:") {
 				info.Pid, _ = strconv.Atoi(strings.Split(line, ":")[1])
 			} else if strings.HasPrefix(line, "uptime_in_seconds:") {

@@ -1,7 +1,6 @@
 package display
 
 import (
-	"fmt"
 	"github.com/pkg/errors"
 	"smartRedis/color"
 	"smartRedis/model"
@@ -9,6 +8,7 @@ import (
 	"smartRedis/utils"
 	"strconv"
 	"strings"
+	"smartRedis/diagnostics"
 )
 
 func DisplayNodeStats(nodesTableInfo model.NodesInfo, masterSlaveIpMap map[string][]string) (err error) {
@@ -16,13 +16,14 @@ func DisplayNodeStats(nodesTableInfo model.NodesInfo, masterSlaveIpMap map[strin
 	var masterSlaveOnSameMachine bool
 	var host string
 	defaultColor := color.GREEN
+	count := 1
 	for _, node := range nodesTableInfo {
 		if node.Type == model.SLAVE {
 			continue
 		}
-		cacheMiss := strconv.FormatFloat((float64(node.Miss)/float64(node.Hits))*100, 'f', 3, 64)
+		cacheMiss := strconv.FormatFloat((float64(node.Hits)/float64(node.Miss + node.Hits))*100, 'f', 3, 64) + "%"
 		colorCode := color.GREEN
-		if isMasterSlaveOnSameMachine(masterSlaveIpMap[node.NodeId], node.Ip) {
+		if diagnostics.IsMasterSlaveOnSameMachine(masterSlaveIpMap[node.NodeId], node.Ip) {
 			colorCode = color.RED
 			masterSlaveOnSameMachine = true
 		}
@@ -32,15 +33,18 @@ func DisplayNodeStats(nodesTableInfo model.NodesInfo, masterSlaveIpMap map[strin
 			host = node.Ip
 		}
 		tw.AppendRecord([]table.Record{
+			{strconv.Itoa(count), defaultColor},
 			{host, defaultColor},
 			{node.Port, defaultColor},
 			{utils.ReadableMemory(node.UsedMemory), defaultColor},
-			{utils.ReadableMemory(node.UsedMemoryPeak), defaultColor},
 			{cacheMiss, defaultColor},
 			{strings.Join(masterSlaveIpMap[node.NodeId], ","), colorCode},
-			{node.HashSlot, defaultColor}})
+			{node.HashSlot, defaultColor},
+			{utils.ReadableMemory(node.UsedMemoryPeak), defaultColor},
+		})
+		count += 1
 	}
-	tw.SetHeader([]string{"Host", "Port", "Data Size", "Peak Mem Used", "Cache Miss", "Slave Node", "Slot"})
+	tw.SetHeader([]string{"Id", "Host(Master)", "Port", "Master Data Size", "Cache Hit Ratio", "Slave Node", "Slot", "Peak Mem Used"})
 	tw.Render()
 	if masterSlaveOnSameMachine {
 		err = errors.New("CLUSTER ERROR: Master slave on same machine")
@@ -53,8 +57,7 @@ func DisplayMachineStats(machineStats map[string]model.MachineStats, totalMaster
 	avgMaster := totalMaster / len(machineStats)
 	defaultColor := color.GREEN
 	t := table.Init()
-	t.SetHeader([]string{"Machine", "Space Used", "Ops Per second", "Network(kbps)", "Master", "Slave"})
-	fmt.Println("\n\nTotal masters: " + strconv.Itoa(totalMaster))
+	t.SetHeader([]string{"Machine", "Total Space Used", "Ops Per second", "Network(kbps)", "Master", "Slave"})
 	var host string
 	for ip, stats := range machineStats {
 		colorCode := color.GREEN
@@ -85,18 +88,6 @@ func DisplayMachineStats(machineStats map[string]model.MachineStats, totalMaster
 	t.Render()
 	if unbalancedCluster {
 		err = errors.New("CLUSTER UNBALANCED: masters non uniformly distributed across cluster")
-	}
-	return
-}
-
-func isMasterSlaveOnSameMachine(slaveIps []string, masterId string) (masterSlaveOnSameMachine bool) {
-	for _, hostPort := range slaveIps {
-		hostPort := strings.Split(hostPort, ":")
-		slaveId := hostPort[0]
-		if slaveId == masterId {
-			masterSlaveOnSameMachine = true
-			break
-		}
 	}
 	return
 }

@@ -19,6 +19,7 @@ type NodeInfo struct {
 type RedisInfo struct {
 	Version                 string
 	Mode                    string
+	Role					string
 	Pid                     int
 	Uptime                  int // secs
 	MaxMemory               int
