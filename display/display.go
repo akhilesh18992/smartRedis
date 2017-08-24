@@ -1,7 +1,6 @@
 package display
 
 import (
-	"github.com/pkg/errors"
 	"smartRedis/color"
 	"smartRedis/model"
 	"smartRedis/table"
@@ -11,12 +10,23 @@ import (
 	"smartRedis/diagnostics"
 )
 
-func DisplayNodeStats(nodesTableInfo model.NodesInfo, masterSlaveIpMap map[string][]string) (err error) {
-	tw := table.Init()
-	var masterSlaveOnSameMachine bool
+func isMaxMemorySet(nodesTable model.NodesInfo) (bool) {
+	for _, node := range nodesTable {
+		if node.MaxMemory != 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func DisplayNodeStats(nodesTableInfo model.NodesInfo, masterSlaveIpMap map[string][]string, d *diagnostics.Diagnostics) {
 	var host string
 	defaultColor := color.GREEN
 	count := 1
+	tw := table.Init()
+	showMaxMemoryColumn := isMaxMemorySet(nodesTableInfo)
+	nonExpiryKeys := false
+	maxMemoryAlert := false
 	for _, node := range nodesTableInfo {
 		if node.Type == model.SLAVE {
 			continue
@@ -25,34 +35,67 @@ func DisplayNodeStats(nodesTableInfo model.NodesInfo, masterSlaveIpMap map[strin
 		colorCode := color.GREEN
 		if diagnostics.IsMasterSlaveOnSameMachine(masterSlaveIpMap[node.NodeId], node.Ip) {
 			colorCode = color.RED
-			masterSlaveOnSameMachine = true
+			//masterSlaveOnSameMachine = true
 		}
 		if node.Host != "" {
 			host = node.Host
 		} else {
 			host = node.Ip
 		}
-		tw.AppendRecord([]table.Record{
-			{strconv.Itoa(count), defaultColor},
-			{host, defaultColor},
-			{node.Port, defaultColor},
-			{utils.ReadableMemory(node.UsedMemory), defaultColor},
-			{cacheMiss, defaultColor},
-			{strings.Join(masterSlaveIpMap[node.NodeId], ","), colorCode},
-			{node.HashSlot, defaultColor},
-			{utils.ReadableMemory(node.UsedMemoryPeak), defaultColor},
-		})
+		if showMaxMemoryColumn {
+			maxMemoryColor := defaultColor
+			if node.MemoryLeft < 10 {
+				maxMemoryColor = color.RED
+				maxMemoryAlert = true
+			}
+			tw.AppendRecord([]table.Record{
+				{strconv.Itoa(count), defaultColor},
+				{host, defaultColor},
+				{node.Port, defaultColor},
+				{utils.ReadableMemory(node.UsedMemory), defaultColor},
+				{strconv.FormatFloat(node.MemoryLeft, 'f', 3, 64) + "%", maxMemoryColor},
+				{cacheMiss, defaultColor},
+				{strings.Join(masterSlaveIpMap[node.NodeId], ","), colorCode},
+				{node.HashSlot, defaultColor},
+				{utils.ReadableMemory(node.UsedMemoryPeak), defaultColor},
+				{strconv.Itoa(node.NonExpiryKeys), color.RED},
+			})
+		} else {
+			tw.AppendRecord([]table.Record{
+				{strconv.Itoa(count), defaultColor},
+				{host, defaultColor},
+				{node.Port, defaultColor},
+				{utils.ReadableMemory(node.UsedMemory), defaultColor},
+				{cacheMiss, defaultColor},
+				{strings.Join(masterSlaveIpMap[node.NodeId], ","), colorCode},
+				{node.HashSlot, defaultColor},
+				{utils.ReadableMemory(node.UsedMemoryPeak), defaultColor},
+				{strconv.Itoa(node.NonExpiryKeys), color.RED},
+			})
+		}
+		if node.NonExpiryKeys > 0 {
+			nonExpiryKeys = true
+		}
 		count += 1
 	}
-	tw.SetHeader([]string{"Id", "Host(Master)", "Port", "Master Data Size", "Cache Hit Ratio", "Slave Node", "Slot", "Peak Mem Used"})
-	tw.Render()
-	if masterSlaveOnSameMachine {
-		err = errors.New("CLUSTER ERROR: Master slave on same machine")
+	if showMaxMemoryColumn {
+		tw.SetHeader([]string{"Id", "Host(Master)", "Port", "Master Data Size", "Memory Left", "Cache Hit Ratio", "Slave Node", "Slot", "Peak Mem Used", "Non Expiry Keys"})
+	} else {
+		tw.SetHeader([]string{"Id", "Host(Master)", "Port", "Master Data Size", "Cache Hit Ratio", "Slave Node", "Slot", "Peak Mem Used", "Non Expiry Keys"})
 	}
-	return
+	tw.Render()
+	if !showMaxMemoryColumn {
+		d.Error("CLUSTER ERROR: Max Memory not set on some machine")
+	}
+	if nonExpiryKeys {
+		d.Error("CLUSTER ERROR: Non expiry keys present in cluster")
+	}
+	if maxMemoryAlert {
+		d.Error("CLUSTER ERROR: Less than 10% memory left")
+	}
 }
 
-func DisplayMachineStats(machineStats map[string]model.MachineStats, totalMaster int) (err error) {
+func DisplayMachineStats(machineStats map[string]model.MachineStats, totalMaster int, d *diagnostics.Diagnostics) {
 	unbalancedCluster := false
 	avgMaster := totalMaster / len(machineStats)
 	defaultColor := color.GREEN
@@ -87,7 +130,6 @@ func DisplayMachineStats(machineStats map[string]model.MachineStats, totalMaster
 	}
 	t.Render()
 	if unbalancedCluster {
-		err = errors.New("CLUSTER UNBALANCED: masters non uniformly distributed across cluster")
+		d.Error("CLUSTER UNBALANCED: masters non uniformly distributed across cluster")
 	}
-	return
 }

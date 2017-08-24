@@ -13,7 +13,7 @@ var config *ssh.ClientConfig
 // returns hostname from ip through ssh, if fails then returns ip
 func GetHostname(ip string) string {
 	if config == nil {
-		return ""
+		return ip
 	}
 	fmt.Println("Resolving host for " + ip)
 	client, err := ssh.Dial("tcp", ip + ":22", config)

@@ -7,6 +7,7 @@ import (
 	"smartRedis/model"
 	"time"
 	"smartRedis/flags"
+	"strings"
 )
 
 func Statsd()  {
@@ -31,7 +32,12 @@ func Statsd()  {
 }
 
 func publishMetrics(statsdClient *statsd.Client, hostInput, portInput string)  {
-	nodesInfo := status.GetNodeInfo(hostInput, portInput)
+	var nodesInfo model.NodesInfo
+	if strings.Contains(portInput, ",") {
+		nodesInfo = status.GetNodeInfo(hostInput, portInput)
+	} else {
+		nodesInfo, _, _ = status.GetClusterNodesInfo(hostInput, portInput, false)
+	}
 
 	result := make(chan string, len(nodesInfo))
 	nodeList := make(chan model.NodeInfo, len(nodesInfo))
@@ -51,13 +57,13 @@ func publishMetrics(statsdClient *statsd.Client, hostInput, portInput string)  {
 
 func publishStatsWorker(client *statsd.Client, nodeList chan model.NodeInfo, result chan string) {
 	for node := range nodeList {
-		fmt.Println(node.Host, node.Role, node.Port, node.UsedMemory, node.UsedMemoryPeak, node.Hits, node.InstantaneousInputKbps, node.InstantaneousOutputKbps, node.InstantaneousOpsPerSec)
-		client.Count(node.Host + "." + node.Role + "." + node.Port + ".mem.usedMemory", node.UsedMemory)
-		client.Count(node.Host + "." + node.Role + "." + node.Port + ".mem.usedMemoryPeak", node.UsedMemoryPeak)
+		client.Count(node.Host + "." + node.Role + "." + node.Port + ".mem.used", node.UsedMemory)
+		client.Count(node.Host + "." + node.Role + "." + node.Port + ".mem.usedPeak", node.UsedMemoryPeak)
 		client.Count(node.Host + "." + node.Role + "." + node.Port + ".keyspace_hits", node.Hits)
 		client.Count(node.Host + "." + node.Role + "." + node.Port + ".network.input", node.InstantaneousInputKbps)
 		client.Count(node.Host + "." + node.Role + "." + node.Port + ".network.output", node.InstantaneousOutputKbps)
 		client.Count(node.Host + "." + node.Role + "." + node.Port + ".ops.output", node.InstantaneousOpsPerSec)
+		client.Count(node.Host + "." + node.Role + "." + node.Port + ".nonexpirykeys", node.NonExpiryKeys)
 		result <- "SuccessFully pushed to statsd " + node.Host + ":" + node.Port
 	}
 	client.Flush()

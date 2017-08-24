@@ -10,7 +10,6 @@ import (
 
 func main() {
 	flags.Init()
-	fmt.Println(flags.Action)
 	if flags.Action == "status" {
 		status.Status()
 	} else if flags.Action == "statsd" {

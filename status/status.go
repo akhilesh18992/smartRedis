@@ -3,7 +3,6 @@ package status
 import (
 	"fmt"
 	"os/exec"
-	"smartRedis/color"
 	"smartRedis/display"
 	"smartRedis/model"
 	"smartRedis/userInput"
@@ -13,53 +12,66 @@ import (
 	"smartRedis/ssh"
 	"smartRedis/diagnostics"
 	"smartRedis/utils"
+	"smartRedis/flags"
 )
 
 var IpHostMap = make(map[string]string)
 
 func Status() {
-	host, port := userInput.AskForHostPort()
+
+	host, port := flags.RedisHost, flags.RedisPort
+	if host == "" || port == "" {
+		panic("Enter flags -redisHost -redisPort")
+	}
+
 	username, password, consent := userInput.AskForUsernamePassword()
 	if consent == "y" || consent == "Y" {
 		ssh.Config(username, password)
 	}
-	nodesTableInfo, masterSlaveIpMap, totalMasters := GetNodesInfo(host, port)
-	if len(masterSlaveIpMap) == 0 {
-		fmt.Println("Wrong Host Port")
-		return
-	}
-	machineStats := make(map[string]model.MachineStats)
-	//var diagnose diagnostics
-	diagnose := diagnostics.Init()
-	diagnose.RunDiagnostics(nodesTableInfo, masterSlaveIpMap)
-	for _, node := range nodesTableInfo {
-		updateMachineStats(machineStats, node)
-	}
-	nodeStatsError := display.DisplayNodeStats(nodesTableInfo, masterSlaveIpMap)
-	if nodeStatsError != nil {
-		diagnose.Error(color.BRed(nodeStatsError.Error()) + "\n")
-	}
-	machineStatsError := display.DisplayMachineStats(machineStats, totalMasters)
-	if machineStatsError != nil {
-		diagnose.Error(color.BRed(machineStatsError.Error()) + "\n")
-	}
+	for {
+		nodesTableInfo, masterSlaveIpMap, totalMasters := GetClusterNodesInfo(host, port, true)
+		if len(masterSlaveIpMap) == 0 {
+			fmt.Println("Wrong Host Port")
+			return
+		}
+		machineStats := make(map[string]model.MachineStats)
 
-	diagnose.Print()
-	// error on no maxmemory, eviction policy, no slave, linux overcommit etc.
+		diagnose := diagnostics.Init()
+		diagnose.RunDiagnostics(nodesTableInfo, masterSlaveIpMap)
+		for _, node := range nodesTableInfo {
+			updateMachineStats(machineStats, node)
+		}
+		display.DisplayNodeStats(nodesTableInfo, masterSlaveIpMap, diagnose)
+		display.DisplayMachineStats(machineStats, totalMasters, diagnose)
+
+		diagnose.Print()
+		// error on eviction policy, no slave, linux overcommit etc.
+		fmt.Println("\nPress return key fetch again")
+		var tmp string
+		fmt.Scanln(&tmp)
+	}
 }
 
 // returns model.NodesInfo by getting data from redis cluster nodes command and redis info command
-func GetNodesInfo(host, port string) (model.NodesInfo, map[string][]string, int) {
+func GetClusterNodesInfo(host, port string, clusterInfo bool) (model.NodesInfo, map[string][]string, int) {
 	var nodes []model.NodeInfo
-	// TODO handle when redis-cli is not there
+	//fmt.Println(utils.ExecCmd("/usr/bin/which a"))
+	//redisCliExists := utils.ExecCmd("/usr/bin/which redis-cli")
+	//if redisCliExists == "" {
+	//	panic("redis-cli not found")
+	//	os := utils.ExecCmd("uname")
+	//	arch := utils.ExecCmd("uname -m")
+	//	if os == "linux" && arch == "x86_64"{
+	//
+	//	}
+	//	// TODO handle when redis-cli is not there
+	//}
 	cmd := "redis-cli -h " + host + " -p " + port + " cluster nodes"
 	out, _ := exec.Command("sh", "-c", cmd).Output()
 	clusterStatus := string(out)
 	nodeDetail := strings.Split(clusterStatus, "\n")
 	masterSlaveIpMap := make(map[string][]string)
-	//machineMasterCountMap := make(map[string]int)
 	totalMasters := 0
-	//IpHostMap = make(map[string]string)
 	for _, nd := range nodeDetail {
 		nodeDetailList := strings.Split(nd, " ")
 		if len(nodeDetailList) <= 1 {
@@ -72,6 +84,9 @@ func GetNodesInfo(host, port string) (model.NodesInfo, map[string][]string, int)
 		if IpHostMap[nodeInfo.Ip] == "" {
 			IpHostMap[nodeInfo.Ip] = ssh.GetHostname(nodeInfo.Ip)
 		}
+		if clusterInfo == false && (nodeInfo.Ip == host || nodeInfo.Host == host) {
+			continue
+		}
 		if strings.Contains(nodeDetailList[2], "slave") {
 			masterSlaveIpMap[nodeDetailList[3]] = append(masterSlaveIpMap[nodeInfo.MasterId], IpHostMap[nodeInfo.Ip]+":" + nodeInfo.Port)
 			nodeInfo.Type = model.SLAVE
@@ -81,9 +96,7 @@ func GetNodesInfo(host, port string) (model.NodesInfo, map[string][]string, int)
 			slotRange := strings.Split(nodeInfo.HashSlot, "-")
 			nodeInfo.HashSlotStart, _ = strconv.Atoi(slotRange[0])
 			nodeInfo.HashSlotEnd, _ = strconv.Atoi(slotRange[1])
-			//machineMasterCountMap[nodeInfo.Ip] += 1
 			totalMasters += 1
-
 		}
 		nodeInfo.Host = IpHostMap[nodeInfo.Ip]
 		nodes = append(nodes, nodeInfo)
@@ -132,6 +145,9 @@ func getRedisInfo(nodes []model.NodeInfo) model.NodesInfo {
 func redisInfoWorker(nodeList chan model.NodeInfo, redisInfo chan model.NodeInfo) {
 	for node := range nodeList {
 		// TODO handle if node down
+		isMaxMemoryKeyPresent := false
+		evictionPolicySet := false
+
 		cmd := "redis-cli -h " + node.Ip + " -p " + node.Port + " info"
 		out, _ := exec.Command("sh", "-c", cmd).Output()
 		var nodeDetail model.NodeInfo
@@ -150,8 +166,10 @@ func redisInfoWorker(nodeList chan model.NodeInfo, redisInfo chan model.NodeInfo
 				info.Uptime, _ = strconv.Atoi(strings.Split(line, ":")[1])
 			} else if strings.HasPrefix(line, "maxmemory:") {
 				info.MaxMemory, _ = strconv.Atoi(strings.Split(line, ":")[1])
+				isMaxMemoryKeyPresent = true
 			} else if strings.HasPrefix(line, "maxmemory_policy:") {
 				info.EvictionPolicy = strings.Split(line, ":")[1]
+				evictionPolicySet = true
 			} else if strings.HasPrefix(line, "instantaneous_ops_per_sec:") {
 				info.InstantaneousOpsPerSec, _ = strconv.Atoi(strings.Split(line, ":")[1])
 			} else if strings.HasPrefix(line, "instantaneous_input_kbps:") {
@@ -178,7 +196,24 @@ func redisInfoWorker(nodeList chan model.NodeInfo, redisInfo chan model.NodeInfo
 				}
 			}
 		}
+		if !isMaxMemoryKeyPresent {
+			if info.MaxMemory == 0 {
+				getMaxMemory := "redis-cli -h " + node.Ip + " -p " + node.Port + " config get maxmemory"
+				maxMemoryOutput, _ := exec.Command("sh", "-c", getMaxMemory).Output()
+				info.MaxMemory, _ = strconv.Atoi(strings.Split(string(maxMemoryOutput), "\n")[1])
+			}
+		}
+		if !evictionPolicySet {
+			if info.EvictionPolicy == "" {
+				evictionPolicy, _ := exec.Command("sh", "-c", "redis-cli -h " + node.Ip + " -p " +
+					node.Port + " config get maxmemory-policy").Output()
+				info.EvictionPolicy = strings.Split(string(evictionPolicy), "\n")[1]
+			}
+		}
 		nodeDetail.CopyFrom(node)
+		if info.MaxMemory != 0 {
+			info.MemoryLeft = 100*(float64(info.MaxMemory - info.UsedMemory)/float64(info.MaxMemory))
+		}
 		nodeDetail.RedisInfo = info
 		redisInfo <- nodeDetail
 	}

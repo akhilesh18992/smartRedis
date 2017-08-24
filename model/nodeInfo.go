@@ -23,6 +23,7 @@ type RedisInfo struct {
 	Pid                     int
 	Uptime                  int // secs
 	MaxMemory               int
+	MemoryLeft				float64
 	EvictionPolicy          string
 	InstantaneousOpsPerSec  int
 	InstantaneousInputKbps  float64
