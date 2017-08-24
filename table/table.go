@@ -17,11 +17,11 @@ type table struct {
 }
 
 type tableRow struct {
-	row       []Record
+	row []Record
 }
 
 type Record struct {
-	Value	string
+	Value     string
 	ColorCode int
 }
 

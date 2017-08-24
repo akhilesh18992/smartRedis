@@ -6,7 +6,7 @@ const MASTER = "MASTER"
 type NodeInfo struct {
 	NodeId        string
 	Ip            string
-	Host		string
+	Host          string
 	Port          string
 	MasterId      string
 	HashSlot      string
@@ -19,11 +19,11 @@ type NodeInfo struct {
 type RedisInfo struct {
 	Version                 string
 	Mode                    string
-	Role					string
+	Role                    string
 	Pid                     int
 	Uptime                  int // secs
 	MaxMemory               int
-	MemoryLeft				float64
+	MemoryLeft              float64
 	EvictionPolicy          string
 	InstantaneousOpsPerSec  int
 	InstantaneousInputKbps  float64

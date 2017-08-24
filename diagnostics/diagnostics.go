@@ -1,24 +1,24 @@
 package diagnostics
 
 import (
-	"smartRedis/model"
-	"smartRedis/color"
 	"fmt"
+	"smartRedis/color"
+	"smartRedis/model"
 	"strings"
 )
 
 type Diagnostics struct {
-	version string
+	version        string
 	evictionPolicy string
-	error	[]string
-	warning	[]string
+	error          []string
+	warning        []string
 }
 
 func Init() *Diagnostics {
 	return &Diagnostics{}
 }
 
-func (d *Diagnostics) RunDiagnostics(nodesTableInfo model.NodesInfo, masterSlaveIpMap map[string][]string)  {
+func (d *Diagnostics) RunDiagnostics(nodesTableInfo model.NodesInfo, masterSlaveIpMap map[string][]string) {
 	var masterSlaveOnSameMachine bool
 	var clusterVersion, clusterEvictionPolicy string
 	inconsistentRedisVersion := false
@@ -53,21 +53,21 @@ func (d *Diagnostics) RunDiagnostics(nodesTableInfo model.NodesInfo, masterSlave
 	}
 }
 
-func (d *Diagnostics) Error(error string)  {
-	d.error = append(d.error, error + "\n")
+func (d *Diagnostics) Error(error string) {
+	d.error = append(d.error, error+"\n")
 }
 
-func (d *Diagnostics) Warning(warning string)  {
-	d.warning = append(d.warning, warning + "\n")
+func (d *Diagnostics) Warning(warning string) {
+	d.warning = append(d.warning, warning+"\n")
 }
 
-func (d *Diagnostics) Print()  {
+func (d *Diagnostics) Print() {
 	diagnosticResult := color.BBlue("\nSmartRedis Diagnosis") + "\n"
 	if d.version != "" {
-		diagnosticResult += color.Green("Redis Version: " + d.version) + "\n"
+		diagnosticResult += color.Green("Redis Version: "+d.version) + "\n"
 	}
 	if d.evictionPolicy != "" {
-		diagnosticResult += color.Green("Eviction Policy: " + d.evictionPolicy) + "\n"
+		diagnosticResult += color.Green("Eviction Policy: "+d.evictionPolicy) + "\n"
 	}
 	for _, err := range d.error {
 		diagnosticResult += color.BRed(err)

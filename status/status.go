@@ -3,16 +3,16 @@ package status
 import (
 	"fmt"
 	"os/exec"
+	"smartRedis/diagnostics"
 	"smartRedis/display"
+	"smartRedis/flags"
 	"smartRedis/model"
+	"smartRedis/ssh"
 	"smartRedis/userInput"
+	"smartRedis/utils"
 	"sort"
 	"strconv"
 	"strings"
-	"smartRedis/ssh"
-	"smartRedis/diagnostics"
-	"smartRedis/utils"
-	"smartRedis/flags"
 )
 
 var IpHostMap = make(map[string]string)
@@ -23,7 +23,8 @@ func Status() {
 		panic("Enter flags -redisHost -redisPort")
 	}
 	var username, password string
-	resolveHostname := flags.ResolveHostname; if resolveHostname == "y" || resolveHostname == "Y" {
+	resolveHostname := flags.ResolveHostname
+	if resolveHostname == "y" || resolveHostname == "Y" {
 		username, password = userInput.AskForUsernamePasswordWithoutConsent()
 		ssh.Config(username, password)
 	}
@@ -87,7 +88,7 @@ func GetClusterNodesInfo(host, port string, clusterInfo bool) (model.NodesInfo, 
 			continue
 		}
 		if strings.Contains(nodeDetailList[2], "slave") {
-			masterSlaveIpMap[nodeDetailList[3]] = append(masterSlaveIpMap[nodeInfo.MasterId], IpHostMap[nodeInfo.Ip]+":" + nodeInfo.Port)
+			masterSlaveIpMap[nodeDetailList[3]] = append(masterSlaveIpMap[nodeInfo.MasterId], IpHostMap[nodeInfo.Ip]+":"+nodeInfo.Port)
 			nodeInfo.Type = model.SLAVE
 		} else {
 			nodeInfo.Type = model.MASTER
@@ -106,7 +107,7 @@ func GetClusterNodesInfo(host, port string, clusterInfo bool) (model.NodesInfo, 
 }
 
 // returns model.NodesInfo by getting data from redis cluster nodes command and redis info command
-func GetNodeInfo(hostInput, portInput string) (model.NodesInfo) {
+func GetNodeInfo(hostInput, portInput string) model.NodesInfo {
 	var nodes []model.NodeInfo
 	var nodeInfo model.NodeInfo
 	ports := strings.Split(portInput, ",")
@@ -204,14 +205,14 @@ func redisInfoWorker(nodeList chan model.NodeInfo, redisInfo chan model.NodeInfo
 		}
 		if !evictionPolicySet {
 			if info.EvictionPolicy == "" {
-				evictionPolicy, _ := exec.Command("sh", "-c", "redis-cli -h " + node.Ip + " -p " +
-					node.Port + " config get maxmemory-policy").Output()
+				evictionPolicy, _ := exec.Command("sh", "-c", "redis-cli -h "+node.Ip+" -p "+
+					node.Port+" config get maxmemory-policy").Output()
 				info.EvictionPolicy = strings.Split(string(evictionPolicy), "\n")[1]
 			}
 		}
 		nodeDetail.CopyFrom(node)
 		if info.MaxMemory != 0 {
-			info.MemoryLeft = 100*(float64(info.MaxMemory - info.UsedMemory)/float64(info.MaxMemory))
+			info.MemoryLeft = 100 * (float64(info.MaxMemory-info.UsedMemory) / float64(info.MaxMemory))
 		}
 		nodeDetail.RedisInfo = info
 		redisInfo <- nodeDetail

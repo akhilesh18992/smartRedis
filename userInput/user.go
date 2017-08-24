@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"golang.org/x/crypto/ssh/terminal"
 	"log"
+	"smartRedis/utils"
 	"strconv"
 	"strings"
-	"smartRedis/utils"
 )
 
 var REDIS_VERSIONS = []string{"3.2.10", "4.1"}
@@ -106,7 +106,7 @@ func AskForHostPort() (host, port string) {
 	return
 }
 
-func AskForUsernamePassword() (username, password, consent string)  {
+func AskForUsernamePassword() (username, password, consent string) {
 	// ask for username password
 	fmt.Print("Resolve IP to Hostname(y/n):")
 	_, err := fmt.Scanln(&consent)
@@ -125,7 +125,7 @@ func AskForUsernamePassword() (username, password, consent string)  {
 	return
 }
 
-func AskForUsernamePasswordWithoutConsent() (username, password string)  {
+func AskForUsernamePasswordWithoutConsent() (username, password string) {
 	// ask for username password
 	username = AskForUsername()
 	password = AskForPassword()

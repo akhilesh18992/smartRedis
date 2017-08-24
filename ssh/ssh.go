@@ -1,11 +1,11 @@
 package ssh
 
 import (
-	"golang.org/x/crypto/ssh"
-	"time"
-	"fmt"
 	"bytes"
+	"fmt"
+	"golang.org/x/crypto/ssh"
 	"strings"
+	"time"
 )
 
 var config *ssh.ClientConfig
@@ -16,7 +16,7 @@ func GetHostname(ip string) string {
 		return ip
 	}
 	fmt.Println("Resolving host for " + ip)
-	client, err := ssh.Dial("tcp", ip + ":22", config)
+	client, err := ssh.Dial("tcp", ip+":22", config)
 	if err != nil {
 		fmt.Println("error resolving hostname. Unable to ssh to " + ip)
 		return ip
@@ -25,7 +25,7 @@ func GetHostname(ip string) string {
 }
 
 // initializing ssh config
-func Config(username, password string)  {
+func Config(username, password string) {
 	config = &ssh.ClientConfig{
 		User: username,
 		Auth: []ssh.AuthMethod{

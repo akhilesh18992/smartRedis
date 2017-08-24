@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 	"smartRedis/cluster"
-	"smartRedis/status"
-	"smartRedis/statsd"
 	"smartRedis/flags"
+	"smartRedis/statsd"
+	"smartRedis/status"
 )
 
 func main() {
@@ -19,7 +19,7 @@ func main() {
 	} else {
 		fmt.Println("Usage: ./smartRedis -action=[status|statsd|cluster] -redisHost=localhost -redisPort=30001 -resolveHostname=n")
 		fmt.Println("status          -- Show Cluster status.")
-		fmt.Println("cluster  -- Launch Redis Cluster instances.")
+		fmt.Println("cluster         -- Launch Redis Cluster instances.")
 		fmt.Println("statsd          -- Push metrics to statsd.")
 	}
 }

@@ -2,15 +2,15 @@ package display
 
 import (
 	"smartRedis/color"
+	"smartRedis/diagnostics"
 	"smartRedis/model"
 	"smartRedis/table"
 	"smartRedis/utils"
 	"strconv"
 	"strings"
-	"smartRedis/diagnostics"
 )
 
-func isMaxMemorySet(nodesTable model.NodesInfo) (bool) {
+func isMaxMemorySet(nodesTable model.NodesInfo) bool {
 	for _, node := range nodesTable {
 		if node.MaxMemory != 0 {
 			return true
@@ -31,7 +31,7 @@ func DisplayNodeStats(nodesTableInfo model.NodesInfo, masterSlaveIpMap map[strin
 		if node.Type == model.SLAVE {
 			continue
 		}
-		cacheMiss := strconv.FormatFloat((float64(node.Hits)/float64(node.Miss + node.Hits))*100, 'f', 3, 64) + "%"
+		cacheMiss := strconv.FormatFloat((float64(node.Hits)/float64(node.Miss+node.Hits))*100, 'f', 3, 64) + "%"
 		colorCode := color.GREEN
 		if diagnostics.IsMasterSlaveOnSameMachine(masterSlaveIpMap[node.NodeId], node.Ip) {
 			colorCode = color.RED

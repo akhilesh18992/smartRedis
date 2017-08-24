@@ -9,7 +9,7 @@ var RedisPort string
 var Action string
 var ResolveHostname string
 
-func Init()  {
+func Init() {
 	flag.StringVar(&StatsdHostPort, "statsd", "", "statsd host port")
 	flag.StringVar(&Prefix, "prefix", "smartRedis", "statsd prefix")
 	flag.StringVar(&RedisHost, "redisHost", "localhost", "redis cluster host")
@@ -18,5 +18,3 @@ func Init()  {
 	flag.StringVar(&Action, "action", "", "action you want to perfrom (status, statsd, create-cluster)")
 	flag.Parse()
 }
-
-
