@@ -4,8 +4,6 @@ Redis Cluster Management
 
 #
 
-# TODO
-- [ ] Show key distribution
-- [ ] Show data distribution
-- [ ] Show Hits
-- [ ] Show Thoughput
+- [Cluster status](docs/status.md)
+- statsd
+- cluster creation
