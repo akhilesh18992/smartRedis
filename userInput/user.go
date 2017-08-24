@@ -124,3 +124,10 @@ func AskForUsernamePassword() (username, password, consent string)  {
 	}
 	return
 }
+
+func AskForUsernamePasswordWithoutConsent() (username, password string)  {
+	// ask for username password
+	username = AskForUsername()
+	password = AskForPassword()
+	return
+}

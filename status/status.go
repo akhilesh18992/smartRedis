@@ -18,14 +18,13 @@ import (
 var IpHostMap = make(map[string]string)
 
 func Status() {
-
 	host, port := flags.RedisHost, flags.RedisPort
 	if host == "" || port == "" {
 		panic("Enter flags -redisHost -redisPort")
 	}
-
-	username, password, consent := userInput.AskForUsernamePassword()
-	if consent == "y" || consent == "Y" {
+	var username, password string
+	resolveHostname := flags.ResolveHostname; if resolveHostname == "y" || resolveHostname == "Y" {
+		username, password = userInput.AskForUsernamePasswordWithoutConsent()
 		ssh.Config(username, password)
 	}
 	for {
