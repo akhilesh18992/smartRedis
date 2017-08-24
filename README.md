@@ -4,6 +4,6 @@ Redis Cluster Management
 
 #
 
-- [Cluster status](smartRedis/docs/status.md)
+- [Cluster status](docs/status.md)
 - statsd
 - cluster creation
