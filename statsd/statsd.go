@@ -58,7 +58,7 @@ func publishMetrics(statsdClient *statsd.Client, hostInput, portInput string) {
 
 func publishStatsWorker(client *statsd.Client, nodeList chan model.NodeInfo, result chan string) {
 	for node := range nodeList {
-		fmt.Println(node.Host,node.Role,node.Port, node.UsedMemory, node.UsedMemoryPeak, node.Hits, node.InstantaneousInputKbps, node.InstantaneousOutputKbps, node.InstantaneousOpsPerSec, node.NonExpiryKeys)
+		//fmt.Println(node.Host,node.Role,node.Port, node.UsedMemory, node.UsedMemoryPeak, node.Hits, node.InstantaneousInputKbps, node.InstantaneousOutputKbps, node.InstantaneousOpsPerSec, node.NonExpiryKeys)
 		client.Count(node.Host+"."+node.Role+"."+node.Port+".mem.used", node.UsedMemory)
 		client.Count(node.Host+"."+node.Role+"."+node.Port+".mem.peak", node.UsedMemoryPeak)
 		client.Count(node.Host+"."+node.Role+"."+node.Port+".keyspace_hits", node.Hits)

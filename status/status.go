@@ -29,7 +29,7 @@ func Status() {
 	var username, password string
 	resolveHostname := flags.ResolveHostname
 	if resolveHostname == "y" || resolveHostname == "Y" {
-		username, password = userInput.AskForUsernamePasswordWithoutConsent()
+		username, password = userInput.AskForUsernamePassword()
 		ssh.Config(username, password)
 	}
 	for {
