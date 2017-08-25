@@ -1,6 +1,6 @@
 # smartRedis
 
-![redis status](redisStatusImage.png)
+![redis status](docs/redisStatusImage.png)
 
 #
 
