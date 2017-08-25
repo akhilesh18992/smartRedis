@@ -85,7 +85,8 @@ func ClusterCreate() {
 	fmt.Println("Dialing......")
 	client, err := ssh.Dial("tcp", "nmc-idp4:22", config)
 	if err != nil {
-		panic("Failed to dial: " + err.Error())
+		fmt.Println("Failed to dial: " + err.Error())
+		os.Exit(1)
 	}
 	fmt.Println("Dialed success")
 	//session, err := client.NewSession()
@@ -104,16 +105,18 @@ func ClusterCreate() {
 	redisTar := "redis-" + redisVersion + ".tar.gz"
 	out, err := os.Create("/home/akhilesh.singh/" + redisTar)
 	if err != nil {
-		panic("Failed to create file: " + err.Error())
+		fmt.Println("Failed to create file: " + err.Error())
+		os.Exit(1)
 	} else {
-		log.Println("File created: " + "/home/akhilesh.singh/" + redisTar)
+		fmt.Println("File created: " + "/home/akhilesh.singh/" + redisTar)
 	}
 	defer out.Close()
 
 	// Get the data
 	resp, err := http.Get("http://download.redis.io/releases/" + redisTar)
 	if err != nil {
-		panic("Failed to download file: " + err.Error())
+		fmt.Println("Failed to download file: " + err.Error())
+		os.Exit(1)
 	} else {
 		log.Println("File downloaded: " + redisTar)
 	}
@@ -122,7 +125,8 @@ func ClusterCreate() {
 	// Writer the body to file
 	_, err = io.Copy(out, resp.Body)
 	if err != nil {
-		panic("Failed to copy file: " + err.Error())
+		fmt.Println("Failed to copy file: " + err.Error())
+		os.Exit(1)
 	} else {
 		log.Println("File copied")
 	}

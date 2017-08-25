@@ -106,26 +106,7 @@ func AskForHostPort() (host, port string) {
 	return
 }
 
-func AskForUsernamePassword() (username, password, consent string) {
-	// ask for username password
-	fmt.Print("Resolve IP to Hostname(y/n):")
-	_, err := fmt.Scanln(&consent)
-	if err != nil {
-		if err.Error() == "unexpected newline" {
-
-		} else {
-			log.Fatal(err)
-		}
-	}
-	consent = strings.TrimSpace(consent)
-	if consent == "y" || consent == "Y" {
-		username = AskForUsername()
-		password = AskForPassword()
-	}
-	return
-}
-
-func AskForUsernamePasswordWithoutConsent() (username, password string) {
+func AskForUsernamePassword() (username, password string) {
 	// ask for username password
 	username = AskForUsername()
 	password = AskForPassword()

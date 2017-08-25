@@ -13,14 +13,18 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"os"
 )
 
 var IpHostMap = make(map[string]string)
 
 func Status() {
+	// optional repeat and interval for auto repeat
+	// colorful flag
 	host, port := flags.RedisHost, flags.RedisPort
 	if host == "" || port == "" {
-		panic("Enter flags -redisHost -redisPort")
+		fmt.Println("Enter flags -redisHost -redisPort")
+		os.Exit(1)
 	}
 	var username, password string
 	resolveHostname := flags.ResolveHostname
@@ -46,7 +50,6 @@ func Status() {
 
 		diagnose.Print()
 		// error on eviction policy, no slave, linux overcommit etc.
-		fmt.Println("\nPress return key fetch again")
 		var tmp string
 		fmt.Scanln(&tmp)
 	}
@@ -72,6 +75,7 @@ func GetClusterNodesInfo(host, port string, clusterInfo bool) (model.NodesInfo, 
 	nodeDetail := strings.Split(clusterStatus, "\n")
 	masterSlaveIpMap := make(map[string][]string)
 	totalMasters := 0
+	var machineIp string
 	for _, nd := range nodeDetail {
 		nodeDetailList := strings.Split(nd, " ")
 		if len(nodeDetailList) <= 1 {
@@ -84,9 +88,10 @@ func GetClusterNodesInfo(host, port string, clusterInfo bool) (model.NodesInfo, 
 		if IpHostMap[nodeInfo.Ip] == "" {
 			IpHostMap[nodeInfo.Ip] = ssh.GetHostname(nodeInfo.Ip)
 		}
-		if clusterInfo == false && (nodeInfo.Ip == host || nodeInfo.Host == host) {
-			continue
+		if strings.Contains(nodeDetailList[2], "myself") {
+			machineIp = hostPort[0]
 		}
+
 		if strings.Contains(nodeDetailList[2], "slave") {
 			masterSlaveIpMap[nodeDetailList[3]] = append(masterSlaveIpMap[nodeInfo.MasterId], IpHostMap[nodeInfo.Ip]+":"+nodeInfo.Port)
 			nodeInfo.Type = model.SLAVE
@@ -101,8 +106,21 @@ func GetClusterNodesInfo(host, port string, clusterInfo bool) (model.NodesInfo, 
 		nodeInfo.Host = IpHostMap[nodeInfo.Ip]
 		nodes = append(nodes, nodeInfo)
 	}
-	nodesTableInfo := getRedisInfo(nodes)
-	sort.Sort(nodesTableInfo)
+	var nodesTableInfo model.NodesInfo
+	if clusterInfo == false {
+		host := strings.Trim(utils.ExecCmd("/bin/hostname"), "\t\r\n")
+		var machineNodes []model.NodeInfo
+		for _, nd := range nodes {
+			if nd.Ip == machineIp {
+				nd.Host = host
+				machineNodes = append(machineNodes, nd)
+			}
+		}
+		nodesTableInfo = getRedisInfo(machineNodes)
+	} else {
+		nodesTableInfo = getRedisInfo(nodes)
+		sort.Sort(nodesTableInfo)
+	}
 	return nodesTableInfo, masterSlaveIpMap, totalMasters
 }
 
