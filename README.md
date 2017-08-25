@@ -1,6 +1,6 @@
 # smartRedis
 
-Redis Cluster Management
+![redis status](redisStatusImage.png)
 
 #
 
